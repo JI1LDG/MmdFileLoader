@@ -6,6 +6,7 @@ using System.Text;
 namespace MmdFileLoader {
 	namespace Pmd {
 		public class PmdLoader { //DWORD = 32, WORD = 16
+			private BinaryStream bs;
 			public PmdHeader Header;
 			public PmdVertex[] Vertex;
 			public PmdIndex[] Index;
@@ -18,35 +19,40 @@ namespace MmdFileLoader {
 			public PmdJoint[] Joint;
 
 			public PmdLoader(string Path) {
-				using(var fs = new FileStream(Path, FileMode.Open))
-				using(var br = new BinaryReader(fs, Encoding.GetEncoding("shift-jis"))) {
-					Header = new PmdHeader(br);
-					Vertex = new PmdVertex[br.ReadInt32()];
-					for(int i = 0; i < Vertex.Length; i++) Vertex[i] = new PmdVertex(br);
-					Index = new PmdIndex[br.ReadInt32() / 3];
-					for(int i = 0; i < Index.Length; i++) Index[i] = new PmdIndex(br);
-					Material = new PmdMaterial[br.ReadInt32()];
-					for(int i = 0; i < Material.Length; i++) Material[i] = new PmdMaterial(br);
-					Bone = new PmdBone[br.ReadInt16()];
-					for(int i = 0; i < Bone.Length; i++) Bone[i] = new PmdBone(br);
-					Ik = new PmdIk[br.ReadInt16()];
-					for(int i = 0; i < Ik.Length; i++) Ik[i] = new PmdIk(br);
-					Skin = new PmdSkin[br.ReadInt16()];
-					for(int i = 0; i < Skin.Length; i++) Skin[i] = new PmdSkin(br);
-					br.SkipShort(br.ReadByte());
-					byte BoneDispCount = br.ReadByte();
-					br.Sjis(50 * BoneDispCount);
-					br.Sjis(3 * br.ReadInt32());
-					br.ReadByte(); br.Sjis(20); br.Sjis(256);
-					br.Sjis(20 * Bone.Length);
-					br.Sjis(20 * (Skin.Length - 1));
-					br.Sjis(50 * BoneDispCount);
+				using(var fs = new FileStream(Path, FileMode.Open)) {
+					bs = new BinaryStream(fs);
+					Header = new PmdHeader(bs);
+					Vertex = new PmdVertex[bs.ReadInt32()];
+					for(int i = 0; i < Vertex.Length; i++) Vertex[i] = new PmdVertex(bs);
+					Index = new PmdIndex[bs.ReadInt32() / 3];
+					for(int i = 0; i < Index.Length; i++) Index[i] = new PmdIndex(bs);
+					Material = new PmdMaterial[bs.ReadInt32()];
+					for(int i = 0; i < Material.Length; i++) Material[i] = new PmdMaterial(bs);
+					Bone = new PmdBone[bs.ReadInt16()];
+					for(int i = 0; i < Bone.Length; i++) Bone[i] = new PmdBone(bs);
+					Ik = new PmdIk[bs.ReadInt16()];
+					for(int i = 0; i < Ik.Length; i++) Ik[i] = new PmdIk(bs);
+					Skin = new PmdSkin[bs.ReadInt16()];
+					for(int i = 0; i < Skin.Length; i++) Skin[i] = new PmdSkin(bs);
+					bs.SkipShort(bs.ReadByte());
+					byte BoneDispCount = bs.ReadByte();
+					bs.Sjis(50 * BoneDispCount);
+					int bondis = bs.ReadInt32();
+					for(int i = 0;i < bondis; i++) {
+						bs.ReadInt16(); bs.ReadByte();
+					}
+					if(bs.ReadByte() == (byte)1) {
+						bs.Sjis(20); bs.Sjis(256);
+						bs.Sjis(20 * Bone.Length);
+						bs.Sjis(20 * (Skin.Length - 1));
+						bs.Sjis(50 * BoneDispCount);
+					}
 					Toon = new PmdToon[10];
-					for(int i = 0; i < 10; i++) Toon[i] = new PmdToon(br);
-					Rigid = new PmdRigid[br.ReadInt32()];
-					for(int i = 0; i < Rigid.Length; i++) Rigid[i] = new PmdRigid(br);
-					Joint = new PmdJoint[br.ReadInt32()];
-					for(int i = 0; i < Joint.Length; i++) Joint[i] = new PmdJoint(br);
+					for(int i = 0; i < 10; i++) Toon[i] = new PmdToon(bs);
+					Rigid = new PmdRigid[bs.ReadInt32()];
+					for(int i = 0; i < Rigid.Length; i++) Rigid[i] = new PmdRigid(bs);
+					Joint = new PmdJoint[bs.ReadInt32()];
+					for(int i = 0; i < Joint.Length; i++) Joint[i] = new PmdJoint(bs);
 				}
 			}
 		}
@@ -55,10 +61,10 @@ namespace MmdFileLoader {
 			public string ModelName;
 			public string Comment;
 
-			public PmdHeader(BinaryReader br) {
-				br.Sjis(3); br.ReadSingle();
-				ModelName = br.Sjis(20);
-				Comment = br.Sjis(256);
+			public PmdHeader(BinaryStream bs) {
+				bs.Sjis(3); bs.ReadSingle();
+				ModelName = bs.Sjis(20);
+				Comment = bs.Sjis(256);
 				// ReadCharsだと、読み込みすぎる? ReadBytesとGetString使用
 			}
 		}
@@ -71,21 +77,21 @@ namespace MmdFileLoader {
 			public byte Weight;
 			public byte EdgeFlag;
 
-			public PmdVertex(BinaryReader br) {
-				Position = br.Vector3();
-				Normal = br.Vector3();
-				Uv = br.Vector2();
-				Bone = new short[] { br.ReadInt16(), br.ReadInt16() };
-				Weight = br.ReadByte();
-				EdgeFlag = br.ReadByte();
+			public PmdVertex(BinaryStream bs) {
+				Position = bs.Vector3();
+				Normal = bs.Vector3();
+				Uv = bs.Vector2();
+				Bone = new short[] { bs.ReadInt16(), bs.ReadInt16() };
+				Weight = bs.ReadByte();
+				EdgeFlag = bs.ReadByte();
 			}
 		}
 
 		public class PmdIndex {
 			public short[] Indicies;
 
-			public PmdIndex(BinaryReader br) {
-				Indicies = new short[] { br.ReadInt16(), br.ReadInt16(), br.ReadInt16() };
+			public PmdIndex(BinaryStream bs) {
+				Indicies = new short[] { bs.ReadInt16(), bs.ReadInt16(), bs.ReadInt16() };
 			}
 		}
 
@@ -101,16 +107,16 @@ namespace MmdFileLoader {
 			public string TextureFileName;
 			public string SphereFileName;
 
-			public PmdMaterial(BinaryReader br) {
-				Diffuse = new Color3(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
-				Alpha = br.ReadSingle();
-				Specularity = br.ReadSingle();
-				Specular = new Color3(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
-				Mirror = new Color3(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
-				ToonIndex = br.ReadByte();
-				EdgeFlag = br.ReadByte();
-				IndiciesCount = br.ReadInt32();
-				var tmp = br.Sjis(20);
+			public PmdMaterial(BinaryStream bs) {
+				Diffuse = new Color3(bs.ReadSingle(), bs.ReadSingle(), bs.ReadSingle());
+				Alpha = bs.ReadSingle();
+				Specularity = bs.ReadSingle();
+				Specular = new Color3(bs.ReadSingle(), bs.ReadSingle(), bs.ReadSingle());
+				Mirror = new Color3(bs.ReadSingle(), bs.ReadSingle(), bs.ReadSingle());
+				ToonIndex = bs.ReadByte();
+				EdgeFlag = bs.ReadByte();
+				IndiciesCount = bs.ReadInt32();
+				var tmp = bs.Sjis(20);
 				var sp = tmp.Split(new char[] { '*' }, StringSplitOptions.RemoveEmptyEntries);
 				foreach(var s in sp) {
 					if(s.Contains(".sp")) SphereFileName = s;
@@ -127,13 +133,13 @@ namespace MmdFileLoader {
 			public short IkIndex;
 			public Vector3 HeadPosition;
 
-			public PmdBone(BinaryReader br) {
-				Name = br.Sjis(20);
-				ParentIndex = br.ReadInt16();
-				TailIndex = br.ReadInt16();
-				Type = br.ReadByte();
-				IkIndex = br.ReadInt16();
-				HeadPosition = br.Vector3();
+			public PmdBone(BinaryStream bs) {
+				Name = bs.Sjis(20);
+				ParentIndex = bs.ReadInt16();
+				TailIndex = bs.ReadInt16();
+				Type = bs.ReadByte();
+				IkIndex = bs.ReadInt16();
+				HeadPosition = bs.Vector3();
 			}
 		}
 
@@ -144,14 +150,14 @@ namespace MmdFileLoader {
 			public float ControlWeight;
 			public short[] ChildBoneIndex;
 
-			public PmdIk(BinaryReader br) {
-				BoneIndex = br.ReadInt16();
-				TargetBoneIndex = br.ReadInt16();
-				ChildBoneIndex = new short[br.ReadByte()];
-				Iterations = br.ReadInt16();
-				ControlWeight = br.ReadSingle();
+			public PmdIk(BinaryStream bs) {
+				BoneIndex = bs.ReadInt16();
+				TargetBoneIndex = bs.ReadInt16();
+				ChildBoneIndex = new short[bs.ReadByte()];
+				Iterations = bs.ReadInt16();
+				ControlWeight = bs.ReadSingle();
 				for(int i = 0; i < ChildBoneIndex.Length; i++) {
-					ChildBoneIndex[i] = br.ReadInt16();
+					ChildBoneIndex[i] = bs.ReadInt16();
 				}
 			}
 		}
@@ -161,12 +167,12 @@ namespace MmdFileLoader {
 			public byte Type;
 			public PmdSkinVertex[] SkinData;
 
-			public PmdSkin(BinaryReader br) {
-				Name = br.Sjis(20);
-				var count = br.ReadInt32();
-				Type = br.ReadByte();
+			public PmdSkin(BinaryStream bs) {
+				Name = bs.Sjis(20);
+				var count = bs.ReadInt32();
+				Type = bs.ReadByte();
 				SkinData = new PmdSkinVertex[count];
-				for(int i = 0; i < SkinData.Length; i++) SkinData[i] = new PmdSkinVertex(br);
+				for(int i = 0; i < SkinData.Length; i++) SkinData[i] = new PmdSkinVertex(bs);
 			}
 		}
 
@@ -174,17 +180,17 @@ namespace MmdFileLoader {
 			public int VertexIndex;
 			public Vector3 Offset;
 
-			public PmdSkinVertex(BinaryReader br) {
-				VertexIndex = br.ReadInt32();
-				Offset = br.Vector3();
+			public PmdSkinVertex(BinaryStream bs) {
+				VertexIndex = bs.ReadInt32();
+				Offset = bs.Vector3();
 			}
 		}
 
 		public class PmdToon {
 			public string FileName;
 
-			public PmdToon(BinaryReader br) {
-				FileName = br.Sjis(100);
+			public PmdToon(BinaryStream bs) {
+				FileName = bs.Sjis(100);
 			}
 		}
 
@@ -206,23 +212,23 @@ namespace MmdFileLoader {
 			public float Friction;
 			public byte RigidType;
 
-			public PmdRigid(BinaryReader br) {
-				Name = br.Sjis(20);
-				RelationBoneIndex = br.ReadInt16();
-				GroupIndex = br.ReadByte();
-				GroupTarget = (short)(0xffff - br.ReadInt16());
-				ShapeType = br.ReadByte();
-				ShapeWidth = br.ReadSingle();
-				ShapeHeighth = br.ReadSingle();
-				ShapeDepth = br.ReadSingle();
-				Position = br.Vector3();
-				Rotation = br.Vector3();
-				Weight = br.ReadSingle();
-				DimPosition = br.ReadSingle();
-				DimRotation = br.ReadSingle();
-				Recoil = br.ReadSingle();
-				Friction = br.ReadSingle();
-				RigidType = br.ReadByte();
+			public PmdRigid(BinaryStream bs) {
+				Name = bs.Sjis(20);
+				RelationBoneIndex = bs.ReadInt16();
+				GroupIndex = bs.ReadByte();
+				GroupTarget = (short)(0xffff - bs.ReadInt16());
+				ShapeType = bs.ReadByte();
+				ShapeWidth = bs.ReadSingle();
+				ShapeHeighth = bs.ReadSingle();
+				ShapeDepth = bs.ReadSingle();
+				Position = bs.Vector3();
+				Rotation = bs.Vector3();
+				Weight = bs.ReadSingle();
+				DimPosition = bs.ReadSingle();
+				DimRotation = bs.ReadSingle();
+				Recoil = bs.ReadSingle();
+				Friction = bs.ReadSingle();
+				RigidType = bs.ReadByte();
 			}
 		}
 
@@ -239,18 +245,18 @@ namespace MmdFileLoader {
 			public Vector3 SpringPosition;
 			public Vector3 SpringRotation;
 
-			public PmdJoint(BinaryReader br) {
-				Name = br.Sjis(20);
-				RigidA = br.ReadInt32();
-				RigidB = br.ReadInt32();
-				Position = br.Vector3();
-				Rotation = br.Vector3();
-				Move1 = br.Vector3();
-				Move2 = br.Vector3();
-				Rotate1 = br.Vector3();
-				Rotate2 = br.Vector3();
-				SpringPosition = br.Vector3();
-				SpringRotation = br.Vector3();
+			public PmdJoint(BinaryStream bs) {
+				Name = bs.Sjis(20);
+				RigidA = bs.ReadInt32();
+				RigidB = bs.ReadInt32();
+				Position = bs.Vector3();
+				Rotation = bs.Vector3();
+				Move1 = bs.Vector3();
+				Move2 = bs.Vector3();
+				Rotate1 = bs.Vector3();
+				Rotate2 = bs.Vector3();
+				SpringPosition = bs.Vector3();
+				SpringRotation = bs.Vector3();
 			}
 		}
 	}

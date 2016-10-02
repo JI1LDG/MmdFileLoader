@@ -50,8 +50,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Definitions.cs" />
+    <Compile Include="BinaryStream.cs" />
+    <Compile Include="MmdLoader.cs" />
     <Compile Include="PmdDefinitions.cs" />
+    <Compile Include="PmxDefinitions.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
