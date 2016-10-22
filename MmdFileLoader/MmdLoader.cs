@@ -1,15 +1,18 @@
 ﻿using SlimDX;
-using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System;
 
 namespace MmdFileLoader {
 	public class MmdLoader {
-		public string Name;
-		public string Comment;
-		public MmdVertex[] Vertex;
-		public int[] Index;
-		public MmdMaterial[] Material;
+		public string ParentDir { get; private set; }
+		public string Name { get; private set; }
+		public string Comment { get; private set; }
+		public MmdVertex[] Vertex{ get; private set; }
+		public int[] Index{ get; private set; }
+		public MmdMaterial[] Material{ get; private set; }
+		public MmdBone[] Bone{ get; private set; }
 
 		public MmdLoader(string Path) {
 			if(Path.Contains(".pmd")) {
@@ -17,6 +20,7 @@ namespace MmdFileLoader {
 			} else {
 				PmxLoad(Path);
 			}
+			ParentDir = System.IO.Path.GetDirectoryName(Environment.CurrentDirectory + "\\" + Path) + "\\";
 		}
 
 		private void PmdLoad(string Path) {
@@ -24,10 +28,13 @@ namespace MmdFileLoader {
 			Name = pl.Header.ModelName;
 			Comment = pl.Header.Comment;
 			Vertex = pl.Vertex.Select(x => new MmdVertex() {
-				Position = x.Position, Normal = x.Normal, Uv = x.Uv,
+				Position = x.Position, Normal = x.Normal, Uv = x.Uv, IsEdgeDraw = x.EdgeFlag == 1 ? true : false, EdgeWidth = 1.0f,
+				Index = new int[] { (int)x.Bone[0], (int)x.Bone[1], 0, 0 }, Weight = new Vector4(x.Weight / 100.0f, (100 - x.Weight) / 100.0f, 0, 0)
 			}).ToArray();
 			Index = pl.Index.SelectMany(x => x.Indicies).Select(x => (int)x).ToArray();
 			Material = pl.Material.Select(x => new MmdMaterial(x, pl.Toon)).ToArray();
+			Bone = pl.Bone.Select((x, index) => new MmdBone(x) { Id = index }).ToArray();
+			
 		}
 
 		private void PmxLoad(string Path) {
@@ -35,10 +42,16 @@ namespace MmdFileLoader {
 			Name = pl.ModelInfo.Name;
 			Comment = pl.ModelInfo.Comment;
 			Vertex = pl.Vertex.Select(x => new MmdVertex() {
-				Position = x.Position, Normal = x.Normal, Uv = x.Uv,
+				Position = x.Position, Normal = x.Normal, Uv = x.Uv, IsEdgeDraw = true, EdgeWidth = x.EdgeMultiply,
+				Index = x.BoneIndex, Weight = x.BoneWeight
 			}).ToArray();
 			Index = pl.Index;
 			Material = pl.Material.Select(x => new MmdMaterial(x, pl.Texture)).ToArray();
+			Bone = pl.Bone.Select(x => new MmdBone(x)).ToArray();
+		}
+
+		private Vector4 ToVec4(int[] src) {
+			return new Vector4(src[0], src[1], src[2], src[3]);
 		}
 	}
 
@@ -46,6 +59,10 @@ namespace MmdFileLoader {
 		public Vector3 Position;
 		public Vector3 Normal;
 		public Vector2 Uv;
+		public bool IsEdgeDraw;
+		public float EdgeWidth;
+		public int[] Index;
+		public Vector4 Weight;
 	}
 
 	public class MmdMaterial {
@@ -112,6 +129,44 @@ namespace MmdFileLoader {
 				}
 			}
 			IndiciesCount = Mat.IndiciesCount;
+		}
+	}
+
+	public class MmdBone {
+		public int Id;
+		public string Name;
+		public Vector3 Position;
+		public int ParentIndex;
+		public int TailIndex;
+		public Vector3 TailOffset; //if TailIndex == -2
+		public BoneFlagEnum BoneFlag;
+		public int Rank;
+		public Vector3 XVector;
+		public Vector3 ZVector;
+		public int AddedParentIndex;
+		public float Addly;
+
+		public MmdBone(Pmd.PmdBone Bone) {
+			Name = Bone.Name;
+			Position = Bone.HeadPosition;
+			ParentIndex = Bone.ParentIndex;
+			TailIndex = Bone.TailIndex;
+			BoneFlag = Bone.BoneFlag;
+			Rank = 0;
+		}
+
+		public MmdBone(Pmx.PmxBone Bone) {
+			Name = Bone.Name;
+			Position = Bone.Position;
+			ParentIndex = Bone.ParentIndex;
+			TailIndex = Bone.TailIndex;
+			TailOffset = Bone.Offset;
+			BoneFlag = Bone.BoneFlag;
+			Rank = Bone.Rank;
+			XVector = Bone.XVector;
+			ZVector = Bone.ZVector;
+			AddedParentIndex = Bone.AddedParentIndex;
+			Addly = Bone.Addly;
 		}
 	}
 }

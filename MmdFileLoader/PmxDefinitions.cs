@@ -70,7 +70,7 @@ namespace MmdFileLoader {
 			public Vector2 Uv;
 			public Vector4[] AddUv;
 			public int[] BoneIndex;
-			public float[] BoneWeight;
+			public Vector4 BoneWeight;
 			public Vector3 SdefC;
 			public Vector3 SdefR0;
 			public Vector3 SdefR1;
@@ -88,28 +88,41 @@ namespace MmdFileLoader {
 				}
 				switch(bs.ReadByte()) {
 					case 0:
-						BoneIndex = bs.ReadIndexes(boneIdxSize, 1);
-						BoneWeight = new float[1] { 1.0f };
+						BoneIndex = ToInt4(bs.ReadIndexes(boneIdxSize, 1));
+						BoneWeight = new Vector4(1.0f, 0, 0, 0);
 						break;
 					case 1:
-						BoneIndex = bs.ReadIndexes(boneIdxSize, 2);
+						BoneIndex = ToInt4(bs.ReadIndexes(boneIdxSize, 2));
 						var weight = bs.ReadSingle();
-						BoneWeight = new float[2] { weight, 1.0f - weight };
+						BoneWeight = new Vector4(weight, 1.0f - weight, 0, 0);
 						break;
 					case 2:
 						BoneIndex = bs.ReadIndexes(boneIdxSize, 4);
-						BoneWeight = bs.ReadSingles(4);
+						BoneWeight = ToVec4(bs.ReadSingles(4));
 						break;
 					default:
-						BoneIndex = bs.ReadIndexes(boneIdxSize, 2);
+						BoneIndex = ToInt4(bs.ReadIndexes(boneIdxSize, 2));
 						var weight2 = bs.ReadSingle();
-						BoneWeight = new float[2] { weight2, 1.0f - weight2 };
+						BoneWeight = new Vector4(weight2, 1.0f - weight2, 0, 0);
 						SdefC = bs.Vector3();
 						SdefR0 = bs.Vector3();
 						SdefR1 = bs.Vector3();
 						break;
 				}
 				EdgeMultiply = bs.ReadSingle();
+			}
+
+			private Vector4 ToVec4(float[] src) {
+				return new Vector4(src[0], src[1], src[2], src[3]);
+			}
+
+			private int[] ToInt4(int[] src) {
+				var tmp = new int[4];
+				for(int i = 0;i < src.Length; i++) {
+					tmp[i] = src[i];
+				}
+
+				return tmp;
 			}
 		}
 
@@ -184,8 +197,10 @@ namespace MmdFileLoader {
 				BoneFlag = (BoneFlagEnum)bs.ReadUInt16();
 				if(BoneFlag.HasFlag(BoneFlagEnum.AssignIndex)) {
 					TailIndex = bs.ReadIndex(boneIdxSize);
+					Offset = new Vector3(0);
 				} else {
 					Offset = bs.Vector3();
+					TailIndex = -2;
 				}
 				if(BoneFlag.HasFlag(BoneFlagEnum.AddRotate) || BoneFlag.HasFlag(BoneFlagEnum.AddMove)) {
 					AddedParentIndex = bs.ReadIndex(boneIdxSize);
@@ -207,14 +222,6 @@ namespace MmdFileLoader {
 					RimitRadian = bs.ReadSingle();
 					Enumerable.Range(0, bs.ReadInt32()).Select(x => new PmxIk(bs, boneIdxSize)).ToArray();
 				}
-			}
-
-			public enum BoneFlagEnum {
-				AssignIndex = 0x01, CanRotate = 0x02, CanMove = 0x04,
-				Draw = 0x08, CanControl = 0x10, Ik = 0x20,
-				AddRotate = 0x0100, AddMove = 0x0200,
-				FixAxis = 0x0400, LocalAxis = 0x0800,
-				TransformAfterPhysic = 0x1000, TransformOuterParent = 0x2000
 			}
 
 			public class PmxIk {

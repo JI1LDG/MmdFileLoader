@@ -129,7 +129,7 @@ namespace MmdFileLoader {
 			public string Name;
 			public short ParentIndex;
 			public short TailIndex;
-			public byte Type;
+			public BoneFlagEnum BoneFlag;
 			public short IkIndex;
 			public Vector3 HeadPosition;
 
@@ -137,7 +137,21 @@ namespace MmdFileLoader {
 				Name = bs.Sjis(20);
 				ParentIndex = bs.ReadInt16();
 				TailIndex = bs.ReadInt16();
-				Type = bs.ReadByte();
+				if(TailIndex == 0) TailIndex = -1;
+				byte type = bs.ReadByte();
+
+				switch(type) {
+					case 0:
+						BoneFlag = BoneFlagEnum.CanRotate;
+						break;
+					case 1:
+						BoneFlag = BoneFlagEnum.CanRotate | BoneFlagEnum.CanMove;
+						break;
+					case 2:
+						BoneFlag = BoneFlagEnum.Ik;
+						break;
+				}
+
 				IkIndex = bs.ReadInt16();
 				HeadPosition = bs.Vector3();
 			}
